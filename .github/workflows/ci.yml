@@ -1,0 +1,85 @@
+name: CI - develop
+
+on:
+  pull_request:
+    branches: [develop]
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ci-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  update-readme:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+
+      - name: Actualizar README
+        env:
+          BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          path = Path("README.md")
+          text = path.read_text(encoding="utf-8-sig")
+          line = f"Añadida feature: {os.environ['BRANCH_NAME']}"
+
+          if line not in text.splitlines():
+              path.write_text(
+                  text.rstrip() + "\n" + line + "\n",
+                  encoding="utf-8"
+              )
+
+          print(path.read_text(encoding="utf-8"))
+          PY
+
+      - name: Guardar cambio en GitHub
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.md
+
+          if git diff --cached --quiet; then
+            echo "El README ya contiene la feature."
+          else
+            git commit -m "docs: actualizar features en README"
+            git push
+          fi
+
+  validate-dev:
+    needs: update-readme
+    runs-on: [self-hosted, Windows, X64]
+    permissions: {}
+    steps:
+      - name: Validar token de desarrollo
+        shell: powershell
+        env:
+          DEV_TOKEN: ${{ secrets.DEV_TOKEN }}
+        run: |
+          Write-Output "Runner: $env:RUNNER_NAME"
+
+          if ([string]::IsNullOrEmpty($env:DEV_TOKEN) -or
+              [string]::IsNullOrEmpty($env:LOCAL_DEV_TOKEN)) {
+            Write-Output "ERROR: falta el secreto o la variable local."
+            exit 1
+          }
+
+          if ($env:DEV_TOKEN -ceq $env:LOCAL_DEV_TOKEN) {
+            Write-Output "CORRECTO: los tokens de desarrollo coinciden."
+            exit 0
+          } else {
+            Write-Output "ERROR: los tokens de desarrollo no coinciden."
+            exit 1
+          }
