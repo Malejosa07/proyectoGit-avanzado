@@ -1,0 +1,86 @@
+name: CD - main
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: cd-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  bump-version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+
+      - name: Incrementar version del README
+        run: |
+          python3 - <<'PY'
+          import re
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          path = Path("README.md")
+          text = path.read_text(encoding="utf-8-sig")
+          pattern = r"^AppVersion-(\d+)[^\r\n]*$"
+          match = re.search(pattern, text, flags=re.MULTILINE)
+
+          if not match:
+              raise SystemExit("ERROR: falta AppVersion en README.md")
+
+          version = int(match.group(1)) + 1
+          timestamp = datetime.now(timezone.utc).strftime(
+              "%Y-%m-%d %H:%M:%S UTC"
+          )
+          line = f"AppVersion-{version} | {timestamp}"
+          text = re.sub(
+              pattern, line, text, count=1, flags=re.MULTILINE
+          )
+          path.write_text(text, encoding="utf-8")
+          print(line)
+          PY
+
+      - name: Guardar nueva version en GitHub
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git commit -m "docs: incrementar version de la aplicacion"
+          git push
+
+  validate-prod:
+    needs: bump-version
+    runs-on: [self-hosted, Windows, X64]
+    permissions: {}
+    steps:
+      - name: Validar token de produccion
+        shell: powershell
+        env:
+          PROD_TOKEN: ${{ secrets.PROD_TOKEN }}
+        run: |
+          Write-Output "Runner: $env:RUNNER_NAME"
+
+          if ([string]::IsNullOrEmpty($env:PROD_TOKEN) -or
+              [string]::IsNullOrEmpty($env:LOCAL_PROD_TOKEN)) {
+            Write-Output "ERROR: falta el secreto o la variable local."
+            exit 1
+          }
+
+          if ($env:PROD_TOKEN -ceq $env:LOCAL_PROD_TOKEN) {
+            Write-Output "CORRECTO: los tokens de produccion coinciden."
+            exit 0
+          } else {
+            Write-Output "ERROR: los tokens de produccion no coinciden."
+            exit 1
+          }
