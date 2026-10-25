@@ -8,3 +8,4 @@ AppVersion-2 | 2026-10-25 20:31:23 UTC
 Añadida feature: setup/actions-parte2
 Añadida feature: develop
 Añadida feature: feature/mi-feature-actions
+Añadida feature: feature/prueba-token-dev
