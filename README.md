@@ -2,7 +2,7 @@
 
 Practica de integracion y despliegue continuos con GitHub Actions.
 
-AppVersion-0
+AppVersion-1 | 2026-10-25 20:25:01 UTC
 
 ## Features
 Añadida feature: setup/actions-parte2
