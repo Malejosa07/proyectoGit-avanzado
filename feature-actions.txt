@@ -1,0 +1,1 @@
+Nueva feature creada por la cuenta colaboradora para probar el pipeline CI.
