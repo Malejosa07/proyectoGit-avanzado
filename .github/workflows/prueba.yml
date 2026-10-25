@@ -1,3 +1,4 @@
+# Segunda prueba: variable local modificada
 name: Prueba de token local
 
 on: push
