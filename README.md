@@ -7,3 +7,4 @@ AppVersion-0
 ## Features
 Añadida feature: setup/actions-parte2
 Añadida feature: develop
+Añadida feature: feature/mi-feature-actions
